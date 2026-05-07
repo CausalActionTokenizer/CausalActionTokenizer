@@ -1,0 +1,93 @@
+exp_name: '${now:%m%d}_K${tokenizer.encoder.num_tokens}_CS${tokenizer.vq.codebook_size}_BS${train.batch_size}'
+
+hydra:
+  run:
+    dir: ./ckpt/${exp_name}
+
+use_wandb: True
+# use_wandb: False
+wandb_expname: '${exp_name}'
+wandb_project: 'vanilla'
+
+ckpt_dir: 'ckpt/${exp_name}'
+save_every_n_steps: 5000
+log_every_n_steps: 50
+dataloader_workers: 8
+
+train:
+    batch_size: 512
+    device: 'cuda'
+    epochs: 125
+    warmup: 0.33 # percentage of total training steps
+    learning_rate: 1e-4
+    weight_decay: 1e-2
+    dct_loss: True
+    loss_fn: l1
+
+data:
+    root_dir: 'data'
+    extra_delta: False
+    action_dim: 7
+    horizon: 20
+    max_episodes: 10000
+    action_only: True
+    use_joint_state: False
+    debug: False
+    preload: True
+    datasets:
+        bridge:
+            weight: 1.0
+            stats_path: 'data/bridge/stats.json'
+            normalizer_method: 'bridge'
+            action_dim: 7
+            horizon: 20
+        Libero_RLDS/libero_spatial_no_noops:
+            weight: 5.0
+            stats_path: 'data/Libero_RLDS/libero_spatial_no_noops/stats.json'
+            action_dim: 7
+        Libero_RLDS/libero_goal_no_noops:
+            weight: 5.0
+            stats_path: 'data/Libero_RLDS/libero_goal_no_noops/stats.json'
+            action_dim: 7
+        Libero_RLDS/libero_object_no_noops:
+            weight: 5.0
+            stats_path: 'data/Libero_RLDS/libero_object_no_noops/stats.json'
+            action_dim: 7
+        Libero_RLDS/libero_10_no_noops:
+            weight: 5.0
+            stats_path: 'data/Libero_RLDS/libero_10_no_noops/stats.json'
+            action_dim: 7
+
+tokenizer:
+    basic:
+        action_dim: ${data.action_dim}
+        horizon: ${data.horizon}
+        is_causal: True
+        add_noise: False
+    encoder:
+        encoder_mode: Dual # Dual / Transformer
+        d_model: 128
+        add_vq_latent: True
+        d_vq: 16
+        num_layers: 8 # 4, 8, 16
+        # TODO: num_tokens K
+        num_tokens: 32
+        embedder:
+            embedder_type: 'patch'  # linear / patch
+            channels_h: 4
+            channels_a: 7
+            use_weight_norm: True
+    vq:
+        vq_mode: VQ_EMA   # VQ / VQ_EMA / RVQ_EMA / null
+        # TODO 2: codebook_size: 2048, 1024, 512
+        codebook_size: 4096
+        threshold: 1.0
+        check_every: 100
+        max_reset_steps: 50000
+    decoder:
+        context_see_xt: True
+
+normalizer:
+    type: 'qq'
+    config:
+        clip: True
